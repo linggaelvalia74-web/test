@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Computer System Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* =====================================================
+     DESIGN TOKENS
+  ===================================================== */
+  :root{
+    --grad-1:#6C5CE7;
+    --grad-2:#00B4D8;
+    --card:#ffffff;
+    --ink:#1b1b3a;
+    --muted:#6b7280;
+    --green:#22c55e;
+    --green-dark:#15803d;
+    --yellow:#f5b301;
+    --yellow-dark:#b57c00;
+    --red:#ef4444;
+    --red-dark:#b91c1c;
+    --pink:#ff6fa5;
+    --purple:#7c6cf6;
+    --blue:#3b82f6;
+    --bg-panel:#f4f3ff;
+    --line:#e6e4ff;
+    --radius-lg:28px;
+    --radius-md:18px;
+    --radius-sm:12px;
+    --font-display:'Fredoka', sans-serif;
+    --font-body:'Baloo 2', sans-serif;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+
+  body{
+    font-family:var(--font-body);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px 12px;
+    position:relative;
+    overflow-x:hidden;
+    background:linear-gradient(120deg,var(--grad-1),var(--grad-2),var(--purple),var(--grad-1));
+    background-size:300% 300%;
+    animation:bgShift 18s ease infinite;
+  }
+  @keyframes bgShift{
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+  }
+
+  /* floating decorative blobs */
+  .blob{
+    position:fixed;
+    border-radius:50%;
+    filter:blur(2px);
+    opacity:.35;
+    pointer-events:none;
+    animation:floaty 9s ease-in-out infinite;
+  }
+  .blob.b1{width:120px;height:120px;background:#ffe08a;top:8%;left:6%;animation-duration:10s;}
+  .blob.b2{width:90px;height:90px;background:#ff9fd0;top:70%;left:10%;animation-duration:8s;}
+  .blob.b3{width:150px;height:150px;background:#9ad9ff;top:15%;right:8%;animation-duration:11s;}
+  .blob.b4{width:80px;height:80px;background:#b6f0c1;bottom:10%;right:12%;animation-duration:7.5s;}
+  @keyframes floaty{
+    0%,100%{transform:translateY(0) translateX(0);}
+    50%{transform:translateY(-22px) translateX(14px);}
+  }
+
+  /* =====================================================
+     MAIN GAME CARD
+  ===================================================== */
+  .game-card{
+    width:100%;
+    max-width:880px;
+    background:var(--card);
+    border-radius:var(--radius-lg);
+    box-shadow:0 25px 60px -20px rgba(20,10,60,0.45);
+    overflow:hidden;
+    position:relative;
+    z-index:1;
+  }
+
+  .top-bar{
+    background:linear-gradient(90deg, var(--purple), var(--blue));
+    padding:16px 22px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .top-bar h1{
+    font-family:var(--font-display);
+    color:#fff;
+    font-size:clamp(15px,3.2vw,20px);
+    letter-spacing:.5px;
+  }
+
+  .hud{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    font-family:var(--font-body);
+    font-weight:700;
+    color:#fff;
+    font-size:14px;
+    opacity:0;
+    transform:translateY(-4px);
+    transition:opacity .3s ease, transform .3s ease;
+    pointer-events:none;
+  }
+  .hud.visible{opacity:1; transform:translateY(0); pointer-events:auto;}
+  .hud .chip{
+    background:rgba(255,255,255,0.18);
+    border-radius:999px;
+    padding:6px 12px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    white-space:nowrap;
+  }
+
+  /* progress bar */
+  .progress-outer{
+    height:10px;
+    background:var(--bg-panel);
+    border-bottom:1px solid var(--line);
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--green), var(--blue));
+    transition:width .4s ease;
+  }
+
+  .screen{
+    display:none;
+    padding:34px 28px 30px;
+    animation:fadeUp .4s ease;
+  }
+  .screen.active{display:block;}
+  @keyframes fadeUp{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  /* =====================================================
+     NAME SCREEN
+  ===================================================== */
+  .name-hero{
+    text-align:center;
+    font-family:var(--font-display);
+    font-size:clamp(20px,5vw,30px);
+    color:var(--purple);
+    margin-bottom:8px;
+  }
+  .name-sub{
+    text-align:center;
+    color:var(--muted);
+    font-size:16px;
+    max-width:440px;
+    margin:0 auto 26px;
+    line-height:1.5;
+  }
+  .name-input{
+    display:block;
+    width:100%;
+    max-width:340px;
+    margin:0 auto 20px;
+    padding:14px 18px;
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:18px;
+    text-align:center;
+    color:var(--ink);
+    background:var(--bg-panel);
+    border:3px solid var(--line);
+    border-radius:var(--radius-sm);
+    outline:none;
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  .name-input:focus{
+    border-color:var(--purple);
+    box-shadow:0 0 0 4px rgba(124,108,246,0.18);
+  }
+  .row-center{display:flex; justify-content:center;}
+
+  .big-btn{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:17px;
+    color:#fff;
+    background:linear-gradient(180deg, var(--purple), #5a48d6);
+    border:none;
+    padding:15px 34px;
+    border-radius:999px;
+    cursor:pointer;
+    box-shadow:0 6px 0 #4433a8, 0 14px 24px -8px rgba(124,108,246,0.55);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .big-btn:active{transform:translateY(5px); box-shadow:0 1px 0 #4433a8;}
+  .big-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .big-btn:focus-visible{outline:3px solid var(--yellow); outline-offset:3px;}
+  .big-btn.ghost{
+    background:transparent;
+    color:var(--purple);
+    border:3px solid var(--line);
+    box-shadow:none;
+  }
+
+  /* =====================================================
+     LEVEL MENU
+  ===================================================== */
+  .menu-greet{
+    text-align:center;
+    font-size:16px;
+    color:var(--muted);
+    margin-bottom:2px;
+  }
+  .menu-greet b{color:var(--purple);}
+  .menu-title{
+    text-align:center;
+    font-family:var(--font-display);
+    font-size:clamp(17px,4vw,22px);
+    margin:6px 0 24px;
+    color:var(--ink);
+  }
+  .levels{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:18px;
+  }
+  .level-card{
+    border-radius:var(--radius-md);
+    padding:22px 18px;
+    text-align:center;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    color:#fff;
+    box-shadow:0 12px 26px -12px rgba(0,0,0,0.35);
+    transition:transform .18s ease;
+  }
+  .level-card:hover{transform:translateY(-6px) scale(1.02);}
+  .level-card .emoji{font-size:38px;}
+  .level-card .lname{font-family:var(--font-display); font-size:18px;}
+  .level-card .ldesc{font-size:13.5px; opacity:.95; margin-bottom:4px; line-height:1.4;}
+  .level-card .lmeta{font-size:12px; opacity:.85; margin-bottom:8px;}
+  .level-card button{
+    width:100%;
+    background:rgba(255,255,255,0.22);
+    border:2px solid rgba(255,255,255,0.6);
+    color:#fff;
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:14px;
+    padding:10px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .level-card button:hover{background:rgba(255,255,255,0.36);}
+  .lvl-beginner{background:linear-gradient(160deg,#34d399,var(--green-dark));}
+  .lvl-intermediate{background:linear-gradient(160deg,#ffd166,var(--yellow-dark));}
+  .lvl-advance{background:linear-gradient(160deg,#ff7a86,var(--red-dark));}
+
+  /* =====================================================
+     GAME SCREEN (shared)
+  ===================================================== */
+  .game-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .level-tag{
+    font-family:var(--font-display);
+    font-size:13px;
+    color:var(--purple);
+    background:var(--bg-panel);
+    padding:6px 14px;
+    border-radius:999px;
+  }
+
+  .feedback-banner{
+    position:absolute;
+    top:70px;
+    left:50%;
+    transform:translateX(-50%) translateY(-10px);
+    font-family:var(--font-display);
+    font-size:18px;
+    padding:10px 22px;
+    border-radius:999px;
+    color:#fff;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:5;
+    white-space:nowrap;
+    box-shadow:0 10px 22px -8px rgba(0,0,0,0.4);
+  }
+  .feedback-banner.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .feedback-banner.correct{background:linear-gradient(90deg,#22c55e,#16a34a);}
+  .feedback-banner.wrong{background:linear-gradient(90deg,#ef4444,#dc2626);}
+
+  /* ---------- Memory Matching (Level 1) ---------- */
+  .memory-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    max-width:520px;
+    margin:0 auto;
+  }
+  @media (max-width:480px){
+    .memory-grid{grid-template-columns:repeat(3,1fr);}
+  }
+  .mcard{
+    aspect-ratio:1/1;
+    border-radius:14px;
+    cursor:pointer;
+    position:relative;
+    perspective:600px;
+  }
+  .mcard-inner{
+    position:relative;
+    width:100%; height:100%;
+    transform-style:preserve-3d;
+    transition:transform .45s ease;
+  }
+  .mcard.flipped .mcard-inner, .mcard.matched .mcard-inner{transform:rotateY(180deg);}
+  .mcard-face{
+    position:absolute; inset:0;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    backface-visibility:hidden;
+  }
+  .mcard-back{
+    background:linear-gradient(160deg,var(--purple),#4d3fc9);
+    color:#fff;
+    font-size:26px;
+    font-family:var(--font-display);
+  }
+  .mcard-front{
+    background:var(--bg-panel);
+    border:2px solid var(--line);
+    transform:rotateY(180deg);
+    flex-direction:column;
+    gap:2px;
+    padding:6px;
+  }
+  .mcard-front svg{width:60%; height:60%;}
+  .mcard-front .clabel{font-size:9px; font-weight:700; color:var(--muted); text-align:center;}
+  .mcard.matched .mcard-front{background:#e8fff1; border-color:var(--green);}
+  .mcard.wrongflash .mcard-back{animation:shake .4s ease;}
+  @keyframes shake{
+    0%,100%{transform:rotate(0);}
+    25%{transform:rotate(-6deg);}
+    75%{transform:rotate(6deg);}
+  }
+
+  /* ---------- Device / MCQ quiz shared ---------- */
+  .device-illustration{
+    width:150px;
+    height:150px;
+    margin:0 auto 16px;
+    background:var(--bg-panel);
+    border-radius:var(--radius-md);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:14px;
+  }
+  .device-illustration svg{width:100%; height:100%;}
+
+  .question-box{
+    background:var(--bg-panel);
+    border-radius:var(--radius-md);
+    padding:18px 20px;
+    text-align:center;
+    margin-bottom:18px;
+    font-weight:700;
+    font-size:18px;
+    line-height:1.4;
+  }
+
+  .choice-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  @media (max-width:480px){
+    .choice-grid{grid-template-columns:1fr;}
+  }
+  .choice-btn{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    text-align:left;
+    background:var(--bg-panel);
+    border:3px solid var(--line);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:15px;
+    padding:14px;
+    border-radius:14px;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .1s ease, background .15s ease;
+  }
+  .choice-btn:hover:not(:disabled){border-color:var(--purple); transform:translateY(-2px);}
+  .choice-btn:focus-visible{outline:3px solid var(--yellow); outline-offset:2px;}
+  .choice-btn .chip{
+    font-family:var(--font-display);
+    font-size:12px;
+    color:#fff;
+    background:var(--purple);
+    border-radius:8px;
+    padding:4px 9px;
+    flex-shrink:0;
+  }
+  .choice-btn:disabled{cursor:default;}
+  .choice-btn.correct{border-color:var(--green); background:#e8fff1;}
+  .choice-btn.correct .chip{background:var(--green);}
+  .choice-btn.wrong{border-color:var(--red); background:#ffecec;}
+  .choice-btn.wrong .chip{background:var(--red);}
+  .choice-btn.dim{opacity:.5;}
+
+  /* =====================================================
+     RESULT SCREEN
+  ===================================================== */
+  .result-icon{font-size:56px; text-align:center; margin-bottom:6px;}
+  .result-title{
+    font-family:var(--font-display);
+    text-align:center;
+    font-size:clamp(20px,5vw,28px);
+    margin-bottom:6px;
+  }
+  .result-title.win{color:var(--green-dark);}
+  .result-title.lose{color:var(--red-dark);}
+  .result-sub{text-align:center; color:var(--muted); margin-bottom:22px; font-weight:600;}
+
+  .stat-row{
+    display:flex;
+    justify-content:center;
+    gap:20px;
+    flex-wrap:wrap;
+    margin-bottom:28px;
+  }
+  .stat{
+    text-align:center;
+    background:var(--bg-panel);
+    border-radius:14px;
+    padding:14px 20px;
+    min-width:100px;
+  }
+  .stat .num{font-family:var(--font-display); font-size:22px; color:var(--purple);}
+  .stat .lbl{font-size:12px; color:var(--muted); margin-top:2px; font-weight:700;}
+
+  .result-actions{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+
+  #confettiCanvas{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:50;
+  }
+
+  footer.tag{
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+    padding:12px;
+    background:var(--bg-panel);
+    border-top:1px solid var(--line);
+    font-weight:700;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+
+  @media (max-width:520px){
+    .screen{padding:26px 18px 24px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+<div class="blob b3"></div>
+<div class="blob b4"></div>
+
+<canvas id="confettiCanvas"></canvas>
+
+<div class="game-card">
+  <div class="top-bar">
+    <h1>💻 Computer System Adventure</h1>
+    <div class="hud" id="hud">
+      <span class="chip" id="hudName">👤 Player</span>
+      <span class="chip" id="hudHearts">❤️❤️❤️</span>
+      <span class="chip" id="hudScore">⭐ 0</span>
+      <span class="chip" id="hudTimer">⏳ --</span>
+    </div>
+  </div>
+  <div class="progress-outer"><div class="progress-fill" id="progressFill"></div></div>
+
+  <!-- ============ NAME SCREEN ============ -->
+  <div class="screen active" id="screen-name">
+    <div class="name-hero">Welcome, Future Computer Expert! 🤖</div>
+    <p class="name-sub">Enter your name to begin your adventure through the world of computers.</p>
+    <input type="text" id="nameInput" class="name-input" placeholder="Type your name" maxlength="18">
+    <div class="row-center">
+      <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
+    </div>
+  </div>
+
+  <!-- ============ LEVEL MENU ============ -->
+  <div class="screen" id="screen-menu">
+    <div class="menu-greet">Hi there, <b id="greetName">Explorer</b>!</div>
+    <div class="menu-title">Choose Your Level</div>
+    <div class="levels">
+      <div class="level-card lvl-beginner">
+        <div class="emoji">🟢</div>
+        <div class="lname">Beginner</div>
+        <div class="ldesc">Memory Match Game<br>Find the matching computer parts!</div>
+        <div class="lmeta">⏳ 20 seconds</div>
+        <button data-level="beginner">Play</button>
+      </div>
+      <div class="level-card lvl-intermediate">
+        <div class="emoji">🟡</div>
+        <div class="lname">Intermediate</div>
+        <div class="ldesc">Name That Device!<br>Identify devices and their jobs.</div>
+        <div class="lmeta">⏳ 35 seconds each</div>
+        <button data-level="intermediate">Play</button>
+      </div>
+      <div class="level-card lvl-advance">
+        <div class="emoji">🔴</div>
+        <div class="lname">Advance</div>
+        <div class="ldesc">Big Quiz Challenge!<br>Hardware, Software &amp; Brainware.</div>
+        <div class="lmeta">⏳ 35 seconds each</div>
+        <button data-level="advance">Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN ============ -->
+  <div class="screen" id="screen-game" style="position:relative;">
+    <div class="feedback-banner" id="feedbackBanner"></div>
+    <div class="game-header">
+      <span class="level-tag" id="levelTag">Beginner</span>
+      <span class="level-tag" id="progressTag">0 / 6</span>
+    </div>
+    <div id="gameArea"></div>
+  </div>
+
+  <!-- ============ RESULT SCREEN ============ -->
+  <div class="screen" id="screen-result">
+    <div class="result-icon" id="resultIcon">🏆</div>
+    <div class="result-title" id="resultTitle">MISSION COMPLETE!</div>
+    <div class="result-sub" id="resultSub">Great job exploring computers!</div>
+    <div class="stat-row">
+      <div class="stat"><div class="num" id="statName">-</div><div class="lbl">Player</div></div>
+      <div class="stat"><div class="num" id="statScore">0</div><div class="lbl">Score</div></div>
+      <div class="stat"><div class="num" id="statHearts">3</div><div class="lbl">Hearts Left</div></div>
+    </div>
+    <div class="result-actions" id="resultActions"></div>
+  </div>
+
+  <footer class="tag">Made for young computer explorers 🌟 Elementary Edition</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =====================================================
+     1. DEVICE DATA + SVG ILLUSTRATIONS
+  ===================================================== */
+  function svgWrap(inner){
+    return '<svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">' + inner + '</svg>';
+  }
+
+  const svgKeyboard = svgWrap(
+    '<rect x="10" y="45" width="120" height="55" rx="10" fill="#5B8DEF"/>' +
+    '<rect x="10" y="45" width="120" height="55" rx="10" fill="none" stroke="#33559e" stroke-width="3"/>' +
+    Array.from({length:4}).map(function(_,r){
+      return Array.from({length:6}).map(function(_,c){
+        return '<rect x="' + (20 + c*17) + '" y="' + (53 + r*11) + '" width="12" height="8" rx="2" fill="#ffffff"/>';
+      }).join('');
+    }).join('')
+  );
+
+  const svgMouse = svgWrap(
+    '<path d="M70 25 C40 25 30 55 30 85 C30 115 50 125 70 125 C90 125 110 115 110 85 C110 55 100 25 70 25 Z" fill="#FF6B6B" stroke="#b23a3a" stroke-width="3"/>' +
+    '<line x1="70" y1="25" x2="70" y2="70" stroke="#b23a3a" stroke-width="3"/>' +
+    '<rect x="64" y="35" width="12" height="24" rx="6" fill="#ffffff"/>'
+  );
+
+  const svgMonitor = svgWrap(
+    '<rect x="18" y="20" width="104" height="70" rx="8" fill="#4C5B7A"/>' +
+    '<rect x="26" y="28" width="88" height="54" rx="4" fill="#6FE3C8"/>' +
+    '<rect x="60" y="90" width="20" height="16" fill="#4C5B7A"/>' +
+    '<rect x="40" y="106" width="60" height="10" rx="4" fill="#33415e"/>'
+  );
+
+  const svgPrinter = svgWrap(
+    '<rect x="22" y="55" width="96" height="45" rx="8" fill="#FFA94D"/>' +
+    '<rect x="34" y="30" width="72" height="30" rx="4" fill="#ffffff" stroke="#d98a3d" stroke-width="3"/>' +
+    '<rect x="46" y="90" width="48" height="26" fill="#ffffff" stroke="#d98a3d" stroke-width="2"/>' +
+    '<circle cx="34" cy="76" r="4" fill="#ffffff"/>'
+  );
+
+  const svgCpu = svgWrap(
+    '<rect x="40" y="14" width="60" height="112" rx="8" fill="#7C6CF6"/>' +
+    '<rect x="50" y="26" width="40" height="16" rx="3" fill="#e9e6ff"/>' +
+    '<circle cx="70" cy="60" r="6" fill="#ffd166"/>' +
+    '<circle cx="70" cy="78" r="6" fill="#22c55e"/>' +
+    '<rect x="50" y="96" width="40" height="10" rx="3" fill="#4b3fc9"/>'
+  );
+
+  const svgWebcam = svgWrap(
+    '<circle cx="70" cy="65" r="38" fill="#34D399"/>' +
+    '<circle cx="70" cy="65" r="20" fill="#0f3d2c"/>' +
+    '<circle cx="63" cy="58" r="6" fill="#ffffff" opacity="0.8"/>' +
+    '<rect x="60" y="103" width="20" height="14" rx="4" fill="#1a9c6d"/>'
+  );
+
+  const svgSpeaker = svgWrap(
+    '<rect x="35" y="18" width="70" height="104" rx="14" fill="#F472B6"/>' +
+    '<circle cx="70" cy="46" r="12" fill="#fff0f7"/>' +
+    '<circle cx="70" cy="46" r="5" fill="#c23f80"/>' +
+    '<circle cx="70" cy="88" r="20" fill="#fff0f7"/>' +
+    '<circle cx="70" cy="88" r="9" fill="#c23f80"/>'
+  );
+
+  const svgHeadphones = svgWrap(
+    '<path d="M25 75 A45 45 0 0 1 115 75" fill="none" stroke="#FBBF24" stroke-width="10" stroke-linecap="round"/>' +
+    '<rect x="14" y="70" width="24" height="40" rx="10" fill="#60A5FA"/>' +
+    '<rect x="102" y="70" width="24" height="40" rx="10" fill="#60A5FA"/>'
+  );
+
+  const svgUsb = svgWrap(
+    '<rect x="45" y="20" width="50" height="70" rx="10" fill="#A78BFA"/>' +
+    '<rect x="58" y="88" width="24" height="30" fill="#D1D5DB"/>' +
+    '<rect x="58" y="112" width="24" height="8" fill="#9CA3AF"/>' +
+    '<rect x="55" y="34" width="30" height="10" rx="3" fill="#fff" opacity="0.7"/>'
+  );
+
+  const svgScanner = svgWrap(
+    '<rect x="18" y="70" width="104" height="34" rx="8" fill="#38BDF8"/>' +
+    '<rect x="28" y="46" width="84" height="24" rx="4" fill="#e0f6ff" stroke="#1c8cbf" stroke-width="3"/>' +
+    '<rect x="28" y="56" width="84" height="4" fill="#38BDF8" opacity="0.6"/>'
+  );
+
+  // Device catalog used by Level 1 (first 6) and Level 2 (all 10)
+  const devices = [
+    {id:"keyboard",   name:"Keyboard",           fn:"Typing text",                                svg:svgKeyboard},
+    {id:"mouse",      name:"Mouse",               fn:"Clicking and pointing on the screen",        svg:svgMouse},
+    {id:"monitor",    name:"Monitor",             fn:"Displaying images and videos",               svg:svgMonitor},
+    {id:"printer",    name:"Printer",             fn:"Printing documents on paper",                svg:svgPrinter},
+    {id:"cpu",        name:"CPU Case",            fn:"Processing data (the brain of the computer)",svg:svgCpu},
+    {id:"webcam",     name:"Webcam",              fn:"Recording video",                            svg:svgWebcam},
+    {id:"speaker",    name:"Speaker",             fn:"Playing sound out loud",                     svg:svgSpeaker},
+    {id:"headphones", name:"Headphones",          fn:"Listening to sound privately",               svg:svgHeadphones},
+    {id:"usb",        name:"USB Flash Drive",     fn:"Storing and moving files",                   svg:svgUsb},
+    {id:"scanner",    name:"Scanner",             fn:"Copying a paper document into the computer", svg:svgScanner}
+  ];
+
+  /* =====================================================
+     2. QUESTION BANK - LEVEL 3 (Hardware / Software / Brainware)
+  ===================================================== */
+  const advanceQuestions = [
+    {q:"What do we call the parts of a computer that we can touch, like the mouse and keyboard?", options:["Hardware","Software","Brainware","Internet"], answer:"Hardware"},
+    {q:"What do we call the programs and apps that run inside a computer?", options:["Software","Hardware","Brainware","Wi-Fi"], answer:"Software"},
+    {q:"What do we call the person who uses and controls the computer?", options:["Brainware","Hardware","Software","Monitor"], answer:"Brainware"},
+    {q:"Which of these is an example of Hardware?", options:["Printer","MS Word","A web browser","A student"], answer:"Printer"},
+    {q:"Which of these is an example of Software?", options:["A paint program","Mouse","Keyboard","Monitor"], answer:"A paint program"},
+    {q:"Which of these is an example of Brainware?", options:["A student typing a story","A printer","A keyboard","A game app"], answer:"A student typing a story"},
+    {q:"Can hardware work all by itself without any software?", options:["No, it needs software to tell it what to do","Yes, always","Only on weekends","Hardware never needs instructions"], answer:"No, it needs software to tell it what to do"},
+    {q:"Why does software need a person (brainware) to be useful?", options:["Because a person tells the software what to do","Software can think by itself","Software doesn't need anyone","Hardware controls the software instead"], answer:"Because a person tells the software what to do"},
+    {q:"Which example best shows hardware, software and brainware working together?", options:["A student uses a keyboard to open a drawing app and draws a picture","A printer prints with no paper inside","A monitor turns on with no power","A mouse moves without anyone touching it"], answer:"A student uses a keyboard to open a drawing app and draws a picture"},
+    {q:"You want to write a story on the computer. Which parts do you need?", options:["A computer, a word processor, and you","Only a printer","Only the internet","Only a mouse"], answer:"A computer, a word processor, and you"}
+  ];
+
+  const levelTimers = {beginner:20, intermediate:35, advance:35};
+
+  /* =====================================================
+     3. AUDIO ENGINE (Web Audio API)
+  ===================================================== */
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    if(audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function tone(freq, startOffset, duration, type, vol){
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.value = freq;
+    const t0 = audioCtx.currentTime + startOffset;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol || 0.18, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + duration + 0.02);
+  }
+  function playClick(){ ensureAudio(); tone(520, 0, 0.08, "square", 0.12); }
+  function playCorrect(){
+    ensureAudio();
+    [523,659,784].forEach(function(f,i){ tone(f, i*0.08, 0.16, "sine", 0.2); });
+  }
+  function playWrong(){
+    // "Tetot..." descending buzzer
+    ensureAudio();
+    tone(300, 0, 0.14, "sawtooth", 0.16);
+    tone(180, 0.12, 0.22, "sawtooth", 0.16);
+  }
+  function playComplete(){
+    ensureAudio();
+    [523,659,784,1046,1318].forEach(function(f,i){ tone(f, i*0.1, 0.22, "triangle", 0.2); });
+  }
+  function playGameOver(){
+    ensureAudio();
+    [392,349,293,220,196].forEach(function(f,i){ tone(f, i*0.17, 0.3, "sawtooth", 0.15); });
+  }
+
+  /* =====================================================
+     4. CONFETTI (canvas based)
+  ===================================================== */
+  const confettiCanvas = document.getElementById("confettiCanvas");
+  const cctx = confettiCanvas.getContext("2d");
+  let confettiParticles = [];
+  let confettiRunning = false;
+
+  function resizeCanvas(){
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+  }
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  function launchConfetti(){
+    const colors = ["#ff6fa5","#ffd166","#22c55e","#3b82f6","#7c6cf6","#00b4d8"];
+    confettiParticles = [];
+    for(let i=0;i<130;i++){
+      confettiParticles.push({
+        x: Math.random()*confettiCanvas.width,
+        y: -20 - Math.random()*200,
+        vx: (Math.random()-0.5)*2.5,
+        vy: 2 + Math.random()*3,
+        size: 5 + Math.random()*6,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        rot: Math.random()*Math.PI,
+        vr: (Math.random()-0.5)*0.3
+      });
+    }
+    if(!confettiRunning){
+      confettiRunning = true;
+      requestAnimationFrame(confettiTick);
+      setTimeout(function(){ confettiRunning = false; confettiParticles = []; cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }, 3400);
+    }
+  }
+
+  function confettiTick(){
+    cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+    confettiParticles.forEach(function(p){
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      cctx.save();
+      cctx.translate(p.x,p.y);
+      cctx.rotate(p.rot);
+      cctx.fillStyle = p.color;
+      cctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+      cctx.restore();
+    });
+    if(confettiRunning) requestAnimationFrame(confettiTick);
+  }
+
+  /* =====================================================
+     5. UTILITIES
+  ===================================================== */
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      const tmp = a[i]; a[i]=a[j]; a[j]=tmp;
+    }
+    return a;
+  }
+  function pickRandomOthers(list, excludeValue, count){
+    const pool = shuffle(list.filter(function(v){ return v !== excludeValue; }));
+    return pool.slice(0, count);
+  }
+
+  function showScreen(id){
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    document.getElementById(id).classList.add("active");
+    document.getElementById("hud").classList.toggle("visible", id === "screen-game");
+  }
+
+  function showFeedback(kind, text){
+    const el = document.getElementById("feedbackBanner");
+    el.textContent = text;
+    el.className = "feedback-banner show " + kind;
+    setTimeout(function(){ el.classList.remove("show"); }, 850);
+  }
+
+  /* =====================================================
+     6. GLOBAL STATE
+  ===================================================== */
+  const state = {
+    playerName:"",
+    levelKey:null,
+    score:0,
+    hearts:3,
+    timerInterval:null
+  };
+
+  function renderHUD(){
+    document.getElementById("hudName").textContent = "👤 " + state.playerName;
+    document.getElementById("hudHearts").textContent = "❤️".repeat(state.hearts) + "🖤".repeat(3 - state.hearts);
+    document.getElementById("hudScore").textContent = "⭐ " + state.score;
+  }
+  function setProgress(current, total){
+    const pct = total === 0 ? 0 : Math.round((current/total)*100);
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("progressTag").textContent = current + " / " + total;
+  }
+  function setTimerDisplay(seconds){
+    document.getElementById("hudTimer").textContent = "⏳ " + Math.max(seconds,0) + "s";
+  }
+
+  /* =====================================================
+     7. NAME SCREEN WIRING
+  ===================================================== */
+  const nameInput = document.getElementById("nameInput");
+  const startBtn = document.getElementById("startBtn");
+  nameInput.addEventListener("input", function(){
+    startBtn.disabled = nameInput.value.trim().length === 0;
+  });
+  nameInput.addEventListener("keydown", function(e){
+    if(e.key === "Enter" && !startBtn.disabled) startBtn.click();
+  });
+  startBtn.addEventListener("click", function(){
+    ensureAudio(); playClick();
+    state.playerName = nameInput.value.trim() || "Explorer";
+    document.getElementById("greetName").textContent = state.playerName;
+    showScreen("screen-menu");
+  });
+
+  /* =====================================================
+     8. LEVEL MENU WIRING
+  ===================================================== */
+  document.querySelectorAll("#screen-menu [data-level]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      ensureAudio(); playClick();
+      launchLevel(btn.getAttribute("data-level"));
+    });
+  });
+
+  function launchLevel(levelKey){
+    state.levelKey = levelKey;
+    state.score = 0;
+    state.hearts = 3;
+    renderHUD();
+    document.getElementById("levelTag").textContent =
+      levelKey === "beginner" ? "🟢 Beginner" : levelKey === "intermediate" ? "🟡 Intermediate" : "🔴 Advance";
+    showScreen("screen-game");
+    if(levelKey === "beginner") startMemoryGame();
+    else if(levelKey === "intermediate") startDeviceQuiz();
+    else startAdvanceQuiz();
+  }
+
+  /* =====================================================
+     9. LEVEL 1 - MEMORY MATCHING GAME
+  ===================================================== */
+  const memory = {cards:[], flipped:[], matched:0, timeLeft:20, locked:false};
+
+  function startMemoryGame(){
+    const pairDevices = devices.slice(0,6); // keyboard, mouse, monitor, printer, cpu, webcam
+    let deck = [];
+    pairDevices.forEach(function(d){ deck.push(d); deck.push(d); });
+    memory.cards = shuffle(deck);
+    memory.flipped = [];
+    memory.matched = 0;
+    memory.locked = false;
+    setProgress(0,6);
+    renderMemoryBoard();
+    startTimer(20, function onTick(t){ setTimerDisplay(t); }, function onExpire(){
+      // Time's up penalty
+      playWrong();
+      showFeedback("wrong", "\u23F0 Time's Up!");
+      loseHeart(function(){
+        if(state.hearts > 0){ startMemoryGame(); } // reshuffle, try again
+      });
+    });
+  }
+
+  function renderMemoryBoard(){
+    const area = document.getElementById("gameArea");
+    area.innerHTML = '<div class="memory-grid" id="memoryGrid"></div>' +
+      '<p style="text-align:center;color:var(--muted);font-weight:700;margin-top:14px;">Flip two cards to find matching computer parts!</p>';
+    const grid = document.getElementById("memoryGrid");
+    memory.cards.forEach(function(device, index){
+      const card = document.createElement("div");
+      card.className = "mcard";
+      card.dataset.index = index;
+      card.innerHTML =
+        '<div class="mcard-inner">' +
+          '<div class="mcard-face mcard-back">?</div>' +
+          '<div class="mcard-face mcard-front">' + device.svg + '<div class="clabel">' + device.name + '</div></div>' +
+        '</div>';
+      card.addEventListener("click", function(){ flipMemoryCard(index, card); });
+      grid.appendChild(card);
+    });
+  }
+
+  function flipMemoryCard(index, cardEl){
+    if(memory.locked) return;
+    if(cardEl.classList.contains("flipped") || cardEl.classList.contains("matched")) return;
+    if(memory.flipped.length === 2) return;
+
+    ensureAudio(); playClick();
+    cardEl.classList.add("flipped");
+    memory.flipped.push({index:index, el:cardEl});
+
+    if(memory.flipped.length === 2){
+      memory.locked = true;
+      const a = memory.flipped[0];
+      const b = memory.flipped[1];
+      const match = memory.cards[a.index].id === memory.cards[b.index].id;
+      setTimeout(function(){
+        if(match){
+          a.el.classList.add("matched");
+          b.el.classList.add("matched");
+          state.score += 10;
+          memory.matched++;
+          renderHUD();
+          setProgress(memory.matched, 6);
+          showFeedback("correct", "\uD83C\uDF89 Yeah! Correct!");
+          playCorrect();
+          memory.flipped = [];
+          memory.locked = false;
+          if(memory.matched === 6){
+            clearInterval(state.timerInterval);
+            finishLevel(true);
+          }
+        } else {
+          a.el.classList.add("wrongflash");
+          b.el.classList.add("wrongflash");
+          showFeedback("wrong", "\u274C Wrong!");
+          playWrong();
+          setTimeout(function(){
+            a.el.classList.remove("flipped","wrongflash");
+            b.el.classList.remove("flipped","wrongflash");
+            memory.flipped = [];
+            memory.locked = false;
+          }, 500);
+        }
+      }, 500);
+    }
+  }
+
+  /* =====================================================
+     10. LEVEL 2 - IDENTIFY DEVICE & FUNCTION
+  ===================================================== */
+  const deviceQuiz = {items:[], index:0};
+
+  function startDeviceQuiz(){
+    const order = shuffle(devices);
+    deviceQuiz.items = [];
+    order.forEach(function(d){
+      deviceQuiz.items.push({device:d, type:"name"});
+      deviceQuiz.items.push({device:d, type:"function"});
+    });
+    deviceQuiz.index = 0;
+    setProgress(0, deviceQuiz.items.length);
+    loadDeviceQuestion();
+  }
+
+  function loadDeviceQuestion(){
+    if(deviceQuiz.index >= deviceQuiz.items.length){ finishLevel(true); return; }
+    const item = deviceQuiz.items[deviceQuiz.index];
+    const d = item.device;
+    const isName = item.type === "name";
+    const questionText = isName ? "What is the name of this device?" : "What is the function of this device?";
+    const correctValue = isName ? d.name : d.fn;
+    const allValues = isName ? devices.map(function(x){return x.name;}) : devices.map(function(x){return x.fn;});
+    const distractors = pickRandomOthers(allValues, correctValue, 3);
+    const choices = shuffle([correctValue].concat(distractors));
+
+    const area = document.getElementById("gameArea");
+    area.innerHTML =
+      '<div class="device-illustration">' + d.svg + '</div>' +
+      '<div class="question-box">' + questionText + '</div>' +
+      '<div class="choice-grid" id="choiceGrid"></div>';
+
+    const letters = ["A","B","C","D"];
+    const grid = document.getElementById("choiceGrid");
+    choices.forEach(function(choice, i){
+      const b = document.createElement("button");
+      b.className = "choice-btn";
+      b.innerHTML = '<span class="chip">' + letters[i] + '</span><span>' + choice + '</span>';
+      b.addEventListener("click", function(){ answerDeviceQuestion(b, choice, correctValue); });
+      grid.appendChild(b);
+    });
+
+    setProgress(deviceQuiz.index, deviceQuiz.items.length);
+    startTimer(35, function onTick(t){ setTimerDisplay(t); }, function onExpire(){
+      answerDeviceQuestion(null, null, correctValue);
+    });
+  }
+
+  function answerDeviceQuestion(chosenBtn, chosenValue, correctValue){
+    clearInterval(state.timerInterval);
+    const buttons = document.querySelectorAll("#choiceGrid .choice-btn");
+    const isCorrect = chosenValue === correctValue;
+    buttons.forEach(function(b){
+      b.disabled = true;
+      const label = b.textContent.replace(/^[A-D]/, "").trim();
+      if(label === correctValue) b.classList.add("correct");
+      else if(b === chosenBtn) b.classList.add("wrong");
+      else b.classList.add("dim");
+    });
+
+    if(isCorrect){
+      state.score += 10;
+      renderHUD();
+      showFeedback("correct", "\uD83C\uDF89 Yeah! Correct!");
+      playCorrect();
+      setTimeout(advanceDeviceQuiz, 1000);
+    } else {
+      showFeedback("wrong", "\u274C Wrong!");
+      playWrong();
+      loseHeart(function(){
+        if(state.hearts > 0) setTimeout(advanceDeviceQuiz, 1000);
+      });
+    }
+  }
+
+  function advanceDeviceQuiz(){
+    deviceQuiz.index++;
+    loadDeviceQuestion();
+  }
+
+  /* =====================================================
+     11. LEVEL 3 - HARDWARE / SOFTWARE / BRAINWARE QUIZ
+  ===================================================== */
+  const advQuiz = {questions:[], index:0};
+
+  function startAdvanceQuiz(){
+    advQuiz.questions = shuffle(advanceQuestions);
+    advQuiz.index = 0;
+    setProgress(0, advQuiz.questions.length);
+    loadAdvanceQuestion();
+  }
+
+  function loadAdvanceQuestion(){
+    if(advQuiz.index >= advQuiz.questions.length){ finishLevel(true); return; }
+    const q = advQuiz.questions[advQuiz.index];
+    const choices = shuffle(q.options);
+    const letters = ["A","B","C","D"];
+
+    const area = document.getElementById("gameArea");
+    area.innerHTML =
+      '<div class="question-box">' + q.q + '</div>' +
+      '<div class="choice-grid" id="choiceGrid"></div>';
+
+    const grid = document.getElementById("choiceGrid");
+    choices.forEach(function(choice, i){
+      const b = document.createElement("button");
+      b.className = "choice-btn";
+      b.innerHTML = '<span class="chip">' + letters[i] + '</span><span>' + choice + '</span>';
+      b.addEventListener("click", function(){ answerAdvanceQuestion(b, choice, q.answer); });
+      grid.appendChild(b);
+    });
+
+    setProgress(advQuiz.index, advQuiz.questions.length);
+    startTimer(35, function onTick(t){ setTimerDisplay(t); }, function onExpire(){
+      answerAdvanceQuestion(null, null, q.answer);
+    });
+  }
+
+  function answerAdvanceQuestion(chosenBtn, chosenValue, correctValue){
+    clearInterval(state.timerInterval);
+    const buttons = document.querySelectorAll("#choiceGrid .choice-btn");
+    const isCorrect = chosenValue === correctValue;
+    buttons.forEach(function(b){
+      b.disabled = true;
+      const label = b.textContent.replace(/^[A-D]/, "").trim();
+      if(label === correctValue) b.classList.add("correct");
+      else if(b === chosenBtn) b.classList.add("wrong");
+      else b.classList.add("dim");
+    });
+
+    if(isCorrect){
+      state.score += 10;
+      renderHUD();
+      showFeedback("correct", "\uD83C\uDF89 Yeah! Correct!");
+      playCorrect();
+      setTimeout(advanceAdvanceQuiz, 1000);
+    } else {
+      showFeedback("wrong", "\u274C Wrong!");
+      playWrong();
+      loseHeart(function(){
+        if(state.hearts > 0) setTimeout(advanceAdvanceQuiz, 1000);
+      });
+    }
+  }
+
+  function advanceAdvanceQuiz(){
+    advQuiz.index++;
+    loadAdvanceQuestion();
+  }
+
+  /* =====================================================
+     12. SHARED TIMER
+  ===================================================== */
+  function startTimer(seconds, onTick, onExpire){
+    clearInterval(state.timerInterval);
+    let t = seconds;
+    setTimerDisplay(t);
+    state.timerInterval = setInterval(function(){
+      t--;
+      onTick(t);
+      if(t <= 0){
+        clearInterval(state.timerInterval);
+        onExpire();
+      }
+    }, 1000);
+  }
+
+  /* =====================================================
+     13. HEARTS / GAME OVER HANDLING
+  ===================================================== */
+  function loseHeart(callback){
+    state.hearts--;
+    renderHUD();
+    if(state.hearts <= 0){
+      clearInterval(state.timerInterval);
+      finishLevel(false);
+    } else if(callback){
+      callback();
+    }
+  }
+
+  /* =====================================================
+     14. RESULT SCREEN
+  ===================================================== */
+  function finishLevel(success){
+    clearInterval(state.timerInterval);
+    document.getElementById("statName").textContent = state.playerName;
+    document.getElementById("statScore").textContent = state.score;
+    document.getElementById("statHearts").textContent = Math.max(state.hearts,0);
+
+    const actions = document.getElementById("resultActions");
+    actions.innerHTML = "";
+
+    if(success){
+      document.getElementById("resultIcon").textContent = "\uD83C\uDFC6";
+      document.getElementById("resultTitle").textContent = "MISSION COMPLETE!";
+      document.getElementById("resultTitle").className = "result-title win";
+      document.getElementById("resultSub").textContent = "Great job exploring computers, " + state.playerName + "!";
+      playComplete();
+      launchConfetti();
+
+      const playAnother = document.createElement("button");
+      playAnother.className = "big-btn";
+      playAnother.textContent = "Play Another Level 🎮";
+      playAnother.addEventListener("click", function(){ playClick(); showScreen("screen-menu"); });
+
+      const mainMenu = document.createElement("button");
+      mainMenu.className = "big-btn ghost";
+      mainMenu.textContent = "Main Menu 🏠";
+      mainMenu.addEventListener("click", function(){ playClick(); showScreen("screen-name"); nameInput.value=""; startBtn.disabled=true; });
+
+      actions.appendChild(playAnother);
+      actions.appendChild(mainMenu);
+    } else {
+      document.getElementById("resultIcon").textContent = "\uD83D\uDCA5";
+      document.getElementById("resultTitle").textContent = "GAME OVER";
+      document.getElementById("resultTitle").className = "result-title lose";
+      document.getElementById("resultSub").textContent = "Try Again! You can do it, " + state.playerName + "!";
+      playGameOver();
+
+      const tryAgain = document.createElement("button");
+      tryAgain.className = "big-btn";
+      tryAgain.textContent = "Play Again 🔁";
+      tryAgain.addEventListener("click", function(){ playClick(); launchLevel(state.levelKey); });
+
+      const mainMenu = document.createElement("button");
+      mainMenu.className = "big-btn ghost";
+      mainMenu.textContent = "Main Menu 🏠";
+      mainMenu.addEventListener("click", function(){ playClick(); showScreen("screen-menu"); });
+
+      actions.appendChild(tryAgain);
+      actions.appendChild(mainMenu);
+    }
+    showScreen("screen-result");
+  }
+
+})();
+</script>
+</body>
+</html>
